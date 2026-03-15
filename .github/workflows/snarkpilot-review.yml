@@ -1,0 +1,101 @@
+name: SnarkPilot PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR diff
+        id: diff
+        run: |
+          git diff origin/${{ github.base_ref }}...HEAD > pr.diff
+          echo "diff_size=$(wc -c < pr.diff)" >> $GITHUB_OUTPUT
+
+      - name: Read SnarkPilot config
+        id: config
+        run: |
+          if [ -f ".snarkpilot.json" ]; then
+            PILOT=$(jq -r '.pilot // "grumpy-senior"' .snarkpilot.json)
+          else
+            PILOT="grumpy-senior"
+          fi
+          echo "pilot=$PILOT" >> $GITHUB_OUTPUT
+
+      - name: Run SnarkPilot review
+        id: review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PILOT: ${{ steps.config.outputs.pilot }}
+        run: |
+          DIFF=$(cat pr.diff)
+
+          # Map pilot name to persona prompt
+          case "$PILOT" in
+            grumpy-senior)
+              PERSONA="You are a senior engineer with 20+ years of battle scars. Blunt, dry, occasionally devastating. You care deeply about craft and do not sugarcoat. Start your review with a one-liner reaction, then give specific, correct feedback."
+              ;;
+            hype-founder)
+              PERSONA="You are a founder who raised a Series A on vibes. Relentlessly positive, always thinking about the demo. Frame feedback as momentum. Start with enthusiasm, then give correct technical feedback."
+              ;;
+            paranoid-security)
+              PERSONA="You are a security engineer who sees every input as an attack vector. Always include the security angle. Start by naming the biggest risk, then give thorough feedback."
+              ;;
+            academic)
+              PERSONA="You have a PhD (two, actually). Cite relevant concepts, use correct complexity notation, reference prior art where useful. Start with an abstract-style summary, then give detailed feedback."
+              ;;
+            zen-master)
+              PERSONA="You are calm, slow, deeply unsettling. Speak in observations. Correct answers arrive like koans. Start with a single observation, then give measured feedback."
+              ;;
+            *)
+              PERSONA="You are a helpful code reviewer. Give clear, correct feedback."
+              ;;
+          esac
+
+          REVIEW=$(curl -s https://api.anthropic.com/v1/messages \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d "$(jq -n \
+              --arg persona "$PERSONA" \
+              --arg diff "$DIFF" \
+              --arg pilot "$PILOT" \
+              '{
+                model: "claude-opus-4-6",
+                max_tokens: 1024,
+                system: $persona,
+                messages: [{
+                  role: "user",
+                  content: ("Review this pull request diff. Be specific. Reference line numbers where relevant.\n\nPilot: " + $pilot + "\n\n```diff\n" + $diff + "\n```")
+                }]
+              }'
+            )" | jq -r '.content[0].text')
+
+          # Write review to file to safely pass to next step
+          echo "$REVIEW" > review.txt
+
+      - name: Post review comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PILOT: ${{ steps.config.outputs.pilot }}
+        run: |
+          REVIEW=$(cat review.txt)
+          BODY="## SnarkPilot Review — \`$PILOT\`
+
+$REVIEW
+
+---
+*Reviewed by [SnarkPilot](https://github.com/krishna-mundada/snarkpilot)*"
+
+          gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"

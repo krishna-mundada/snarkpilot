@@ -2,7 +2,7 @@
 
 > Your AI pair programmer. With a personality disorder.
 
-SnarkPilot is an AI coding assistant that gives you **technically correct advice** delivered by a **character of your choosing**. Because sometimes you need a grumpy senior engineer to tell you your variable naming is an abomination. Sometimes you need a hype founder to remind you that shipping beats perfect. And sometimes you just need someone to review your code like they've already seen everything go wrong — twice.
+SnarkPilot is a Claude Code extension that lets you work with an AI coding assistant in character. Pick a pilot, get technically correct advice wrapped in wildly different energy.
 
 ---
 
@@ -10,54 +10,74 @@ SnarkPilot is an AI coding assistant that gives you **technically correct advice
 
 | Pilot | Vibe | Catchphrase |
 |-------|------|-------------|
-| **The Grumpy Senior** | 20 years of scars, zero tolerance for nonsense | *"Who wrote this? I need to have a word."* |
-| **The Hype Founder** | Moves fast, breaks things, raises Series A | *"Ship it. We'll fix it in prod."* |
-| **The Paranoid Security Engineer** | Every input is an attack vector | *"Have you considered... SQL injection?"* |
-| **The Academic** | Has a PhD. Cites papers. Always. | *"Actually, Dijkstra addressed this in 1968..."* |
-| **The Zen Master** | Calm. Slow. Deeply unsettling. | *"The bug is not in the code. The bug is in you."* |
+| **grumpy-senior** | 20 years of scars, zero tolerance for nonsense | *"Who wrote this? I need to have a word."* |
+| **hype-founder** | Moves fast, breaks things, raises Series A | *"Ship it. We'll fix it in prod."* |
+| **paranoid-security** | Every input is an attack vector | *"Have you considered... SQL injection?"* |
+| **academic** | Has a PhD. Cites papers. Always. | *"Actually, Dijkstra addressed this in 1968..."* |
+| **zen-master** | Calm. Slow. Deeply unsettling. | *"The bug is not in the code. The bug is in you."* |
 
 ---
 
-## What It Does
+## How It Works
 
-- **Code review** — get a PR review from whichever personality you need today
-- **Architecture advice** — should you use microservices? depends who you ask
-- **Debugging sessions** — the Grumpy Senior *will* find it. the Hype Founder won't care
-- **Pair programming** — real-time commentary as you write code
-- **Explainers** — have The Academic explain async/await with citations
+SnarkPilot integrates with [Claude Code](https://claude.ai/claude-code) via output styles and session hooks.
 
-All personalities give you **the same correct answer**. Just wrapped in wildly different energy.
+### Pick a pilot for the session
+
+Open Claude Code and run:
+
+```
+/config
+```
+
+Select **Output style** → choose your pilot. Takes effect next session.
+
+### Set a persistent default for a project
+
+Create a `.pilot` file in your project root:
+
+```bash
+echo "grumpy-senior" > .pilot
+```
+
+SnarkPilot's session hook will automatically load that pilot every time you open Claude Code in that directory.
+
+### PR reviews via GitHub Actions
+
+Add an `ANTHROPIC_API_KEY` secret to your repo, then add a `.snarkpilot.json`:
+
+```json
+{
+  "pilot": "grumpy-senior"
+}
+```
+
+Every PR will get reviewed in character and posted as a comment automatically.
 
 ---
 
-## Why This Exists
+## Installation
 
-Code review is useful. Code review that makes you laugh is memorable. Code review that matches your *current mood* is actually something you'll use every day.
+Clone this repo and copy the `.claude/` directory into your project (or `~/.claude/` for global use):
 
-Also: screenshots go viral. A grumpy senior engineer telling you your for-loop is "a cry for help" is more shareable than any linter output.
+```bash
+# Project-level
+cp -r .claude/output-styles /your-project/.claude/
+cp -r .claude/hooks /your-project/.claude/
+cp .claude/settings.json /your-project/.claude/
+
+# Global (available in all projects)
+cp -r .claude/output-styles ~/.claude/
+cp -r .claude/hooks ~/.claude/
+# merge hooks into your existing ~/.claude/settings.json
+```
 
 ---
 
 ## Stack
 
-- **Runtime:** Node.js / TypeScript
-- **AI:** Claude API (Anthropic)
-- **Interface:** CLI-first, web UI coming
-
----
-
-## Status
-
-🚧 Early days. We're figuring out what this wants to be.
-
----
-
-## Getting Started
-
-```bash
-# coming soon
-npx snarkpilot review --pilot grumpy-senior
-```
+- **Integration:** Claude Code (output styles + hooks)
+- **PR reviews:** GitHub Actions + Claude API
 
 ---
 
