@@ -2,7 +2,7 @@
 
 > Your AI pair programmer. With a personality disorder.
 
-SnarkPilot is a Claude Code extension that lets you work with an AI coding assistant in character. Pick a pilot, get technically correct advice wrapped in wildly different energy.
+SnarkPilot is a Claude Code plugin that lets you work with an AI coding assistant in character. Pick a pilot, get technically correct advice wrapped in wildly different energy.
 
 ---
 
@@ -18,13 +18,19 @@ SnarkPilot is a Claude Code extension that lets you work with an AI coding assis
 
 ---
 
-## How It Works
+## Installation
 
-SnarkPilot integrates with [Claude Code](https://claude.ai/claude-code) via output styles and session hooks.
+```bash
+claude plugin install github:krishna-mundada/snarkpilot --scope user
+```
+
+That's it. The pilots will appear in `/config` → **Output style** across all your projects.
+
+---
+
+## Usage
 
 ### Pick a pilot for the session
-
-Open Claude Code and run:
 
 ```
 /config
@@ -40,11 +46,11 @@ Create a `.pilot` file in your project root:
 echo "grumpy-senior" > .pilot
 ```
 
-SnarkPilot's session hook will automatically load that pilot every time you open Claude Code in that directory.
+SnarkPilot will automatically load that pilot every time you open Claude Code in that directory.
 
 ### PR reviews via GitHub Actions
 
-Add an `ANTHROPIC_API_KEY` secret to your repo, then add a `.snarkpilot.json`:
+Add `ANTHROPIC_API_KEY` to your repo secrets, then add `.snarkpilot.json`:
 
 ```json
 {
@@ -52,32 +58,39 @@ Add an `ANTHROPIC_API_KEY` secret to your repo, then add a `.snarkpilot.json`:
 }
 ```
 
-Every PR will get reviewed in character and posted as a comment automatically.
+And the workflow file — copy `.github/workflows/snarkpilot-review.yml` from this repo into yours. Every PR will get reviewed in character and posted as a comment.
 
 ---
 
-## Installation
+## How It Works
 
-Clone this repo and copy the `.claude/` directory into your project (or `~/.claude/` for global use):
+SnarkPilot is a Claude Code plugin that bundles:
 
-```bash
-# Project-level
-cp -r .claude/output-styles /your-project/.claude/
-cp -r .claude/hooks /your-project/.claude/
-cp .claude/settings.json /your-project/.claude/
+- **Output styles** — one per pilot, injected into Claude's system prompt. `keep-coding-instructions: true` so Claude's coding smarts stay intact; only the personality changes.
+- **Session hook** — reads `.pilot` from your project root at session start and auto-loads the persona. No manual selection needed per session.
 
-# Global (available in all projects)
-cp -r .claude/output-styles ~/.claude/
-cp -r .claude/hooks ~/.claude/
-# merge hooks into your existing ~/.claude/settings.json
+---
+
+## Plugin Structure
+
 ```
-
----
-
-## Stack
-
-- **Integration:** Claude Code (output styles + hooks)
-- **PR reviews:** GitHub Actions + Claude API
+snarkpilot/
+├── .claude-plugin/
+│   └── plugin.json          # Plugin manifest
+├── output-styles/           # One file per pilot
+│   ├── grumpy-senior.md
+│   ├── hype-founder.md
+│   ├── paranoid-security.md
+│   ├── academic.md
+│   └── zen-master.md
+├── hooks/
+│   └── hooks.json           # SessionStart hook config
+├── scripts/
+│   └── session-start.sh     # Reads .pilot, injects persona
+└── .github/
+    └── workflows/
+        └── snarkpilot-review.yml  # PR review Action
+```
 
 ---
 

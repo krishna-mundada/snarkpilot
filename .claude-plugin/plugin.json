@@ -1,0 +1,15 @@
+{
+  "name": "snarkpilot",
+  "version": "0.1.0",
+  "description": "Your AI pair programmer. With a personality disorder.",
+  "author": {
+    "name": "krishna-mundada",
+    "url": "https://github.com/krishna-mundada"
+  },
+  "homepage": "https://github.com/krishna-mundada/snarkpilot",
+  "repository": "https://github.com/krishna-mundada/snarkpilot",
+  "license": "MIT",
+  "keywords": ["personality", "code-review", "pair-programming", "fun"],
+  "outputStyles": "./output-styles/",
+  "hooks": "./hooks/hooks.json"
+}
