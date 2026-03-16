@@ -32,10 +32,9 @@ case "$PILOT" in
     ;;
 esac
 
-# Output JSON to inject persona into the session context
-cat <<EOF
-{
-  "type": "system",
-  "content": "SnarkPilot active — pilot: $PILOT\n\n$PERSONA\n\nStay in character for all responses in this session. Technical content must always be correct; only tone and style change."
-}
-EOF
+# Inject persona as plain text — Claude Code reads stdout from SessionStart hooks
+echo "SnarkPilot active — pilot: $PILOT"
+echo ""
+echo "$PERSONA"
+echo ""
+echo "Stay in character for all responses in this session. Technical content must always be correct; only tone and style change."

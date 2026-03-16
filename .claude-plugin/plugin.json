@@ -11,5 +11,6 @@
   "license": "MIT",
   "keywords": ["personality", "code-review", "pair-programming", "fun"],
   "outputStyles": "./output-styles/",
-  "hooks": "./hooks/hooks.json"
+  "hooks": "./hooks/hooks.json",
+  "skills": "./skills/"
 }
