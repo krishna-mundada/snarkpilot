@@ -32,26 +32,38 @@ Give each agent this exact prompt:
 
 ## Step 3 — Synthesize
 
-Once all 5 agents have returned, produce a single combined review in this format:
+Once all 5 agents have returned, produce a single combined review organized by **priority**, not by which pilot said what.
+
+Merge findings that are the same issue expressed differently. A finding raised by multiple pilots gets higher priority and a consensus tag — it does not get listed multiple times.
+
+Output in this exact format:
 
 ---
 
-## SnarkPilot Full Review
+## SnarkPilot Review
 
-### Consensus Issues
-Issues raised by 2 or more pilots. These are the most important — multiple independent lenses flagged the same problem. For each, note which pilots flagged it.
+🔴 **Critical** — fix before shipping
+> Issues that will cause failures, security vulnerabilities, or data loss. List each as a single line: location, what's wrong, why it matters. Tag with `[lens]` that caught it, or `[consensus]` if 2+ pilots flagged it.
 
-### Specialist Finds
-Issues raised by only one pilot that are still significant. Tag each with the pilot that found it (e.g. `[paranoid-security]`, `[academic]`). Include things the other pilots would not have caught.
+🟡 **Important** — fix soon
+> Issues that will cause pain — maintainability problems, incorrect behaviour under edge cases, poor abstractions. Same format: location, problem, why it matters. Tagged.
 
-### All Clear
-Anything a pilot explicitly checked and found fine. Brief.
+🟢 **Minor** — worth noting
+> Style, naming, small improvements. Not blocking. Tagged.
 
-### Overall Verdict
-One paragraph synthesizing all perspectives. What is the most important thing to fix? What is genuinely good?
-
-**SHIP IT / DON'T SHIP IT** — make a call, weighed across all 5 perspectives.
+✅ **Checked clean**
+> What was explicitly verified as fine. One line each. This tells the author what doesn't need a second look.
 
 ---
 
-Be direct. Do not repeat the same finding five times. If multiple pilots said the same thing in different words, merge them into one finding and note the consensus.
+**Verdict:** SHIP IT / DON'T SHIP IT
+One sentence explaining the call. If DON'T SHIP IT, name the single thing that needs to change first.
+
+---
+
+Rules:
+- If a section has no findings, omit it entirely — do not write "none"
+- Every finding must have a location (file, function, or line if known)
+- Every finding must have a `[lens]` tag — the pilot whose reasoning caught it — or `[consensus]` if multiple pilots flagged it independently
+- Do not mention pilot personalities or names in the body of findings — just the tag
+- The reader should be able to action this review without reading anything else
