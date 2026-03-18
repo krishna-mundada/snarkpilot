@@ -21,81 +21,168 @@ jobs:
         id: diff
         run: |
           git diff origin/${{ github.base_ref }}...HEAD > pr.diff
-          echo "diff_size=$(wc -c < pr.diff)" >> $GITHUB_OUTPUT
+          DIFF_SIZE=$(wc -c < pr.diff)
+          echo "diff_size=$DIFF_SIZE" >> $GITHUB_OUTPUT
+          # Warn if diff is very large — review quality degrades above ~200KB
+          if [ "$DIFF_SIZE" -gt 204800 ]; then
+            echo "⚠️  Diff is large (${DIFF_SIZE} bytes). Consider reviewing in smaller PRs."
+          fi
 
       - name: Read SnarkPilot config
         id: config
         run: |
+          MODE="full"
+          PILOT="grumpy-senior"
           if [ -f ".snarkpilot.json" ]; then
+            MODE=$(jq -r '.mode // "full"' .snarkpilot.json)
             PILOT=$(jq -r '.pilot // "grumpy-senior"' .snarkpilot.json)
-          else
-            PILOT="grumpy-senior"
           fi
+          echo "mode=$MODE" >> $GITHUB_OUTPUT
           echo "pilot=$PILOT" >> $GITHUB_OUTPUT
 
       - name: Run SnarkPilot review
         id: review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MODE: ${{ steps.config.outputs.mode }}
           PILOT: ${{ steps.config.outputs.pilot }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BASE: ${{ github.base_ref }}
+          PR_HEAD: ${{ github.head_ref }}
         run: |
           DIFF=$(cat pr.diff)
+          PR_CONTEXT="PR: $PR_TITLE
+          Base: $PR_BASE ← $PR_HEAD
+          Description: ${PR_BODY:-No description provided.}"
 
-          # Map pilot name to persona prompt
-          case "$PILOT" in
-            grumpy-senior)
-              PERSONA="You are a senior engineer with 20+ years of battle scars. Blunt, dry, occasionally devastating. You care deeply about craft and do not sugarcoat. Start your review with a one-liner reaction, then give specific, correct feedback."
-              ;;
-            hype-founder)
-              PERSONA="You are a founder who raised a Series A on vibes. Relentlessly positive, always thinking about the demo. Frame feedback as momentum. Start with enthusiasm, then give correct technical feedback."
-              ;;
-            paranoid-security)
-              PERSONA="You are a security engineer who sees every input as an attack vector. Always include the security angle. Start by naming the biggest risk, then give thorough feedback."
-              ;;
-            academic)
-              PERSONA="You have a PhD (two, actually). Cite relevant concepts, use correct complexity notation, reference prior art where useful. Start with an abstract-style summary, then give detailed feedback."
-              ;;
-            zen-master)
-              PERSONA="You are calm, slow, deeply unsettling. Speak in observations. Correct answers arrive like koans. Start with a single observation, then give measured feedback."
-              ;;
-            *)
-              PERSONA="You are a helpful code reviewer. Give clear, correct feedback."
-              ;;
-          esac
+          if [ "$MODE" = "full" ]; then
+            # Full multi-lens review: all 5 reasoning lenses, synthesized by priority
+            SYSTEM_PROMPT='You are SnarkPilot, a code review system that applies five specialized analytical lenses to every review and synthesizes findings by priority — not by which lens caught them.
 
-          REVIEW=$(curl -s https://api.anthropic.com/v1/messages \
+## The five lenses
+
+**maintainability** — naming, code smell, implicit assumptions, things that will hurt in 3 years. Shadow variables, god functions, boolean traps, magic numbers, functions doing two things.
+
+**shippability** — is this releasable? Over-engineering, premature abstraction, scope creep, anything blocking the demo. Always ends with a SHIP IT / DON'\''T SHIP IT call.
+
+**security** — attack surface, injection vectors, trust boundaries, secret exposure, insecure defaults. For each issue: severity (Critical/High/Medium/Low), CWE ID, one-line remediation.
+
+**correctness** — algorithmic complexity (Big-O), incorrect assumptions about data structures, edge cases the literature documents, naming that conflicts with established CS terminology. Cite real references where relevant.
+
+**simplicity** — wrong problem being solved, unnecessary complexity, hidden duplication, incidental vs essential complexity. Ends with a single rhetorical question, never a prescription.
+
+## Output format
+
+Organize findings by priority. Merge identical findings across lenses — do not repeat the same issue five times. Tag each finding with the lens that caught it, or [consensus] if multiple lenses flagged it independently.
+
+## SnarkPilot Review
+
+🔴 **Critical** — fix before shipping
+Each finding on one line: location → what'\''s wrong → why it matters [lens]
+
+🟡 **Important** — fix soon
+Same format.
+
+🟢 **Minor** — worth noting
+Same format.
+
+✅ **Checked clean**
+What was explicitly verified as fine. One line each.
+
+---
+**Verdict:** SHIP IT / DON'\''T SHIP IT
+One sentence. If DON'\''T SHIP IT, name the single blocker.
+
+Rules:
+- Omit sections with no findings — do not write "none"
+- Every finding needs a location
+- Be specific — line numbers or function names, not vague areas
+- The author should be able to act on this without reading anything else'
+
+            USER_PROMPT="Review this pull request.
+
+$PR_CONTEXT
+
+\`\`\`diff
+$DIFF
+\`\`\`"
+
+          else
+            # Single-pilot mode — kept for teams that prefer one focused voice
+            case "$PILOT" in
+              grumpy-senior)
+                SYSTEM_PROMPT="You are a senior engineer with 20+ years of battle scars. Terse, dry, occasionally devastating. You care deeply about craft. Review the PR below. Name specific problem patterns (shadow variable, god function, boolean trap). Point at exact locations. Say why each will cause pain in one sentence. End with a one-liner verdict. Do not rewrite anything."
+                ;;
+              hype-founder)
+                SYSTEM_PROMPT="You are a founder who raised a Series A on vibes. Relentlessly positive, always thinking about the demo. Review the PR. Flag over-engineering and blockers. Always end with SHIP IT / DON'T SHIP IT and an ETA to fix if applicable."
+                ;;
+              paranoid-security)
+                SYSTEM_PROMPT="You are a security engineer who assumes breach. Review the PR for attack surface, injection, trust boundary violations, secret exposure, insecure defaults. For each issue: severity (Critical/High/Medium/Low), CWE ID, one-line remediation."
+                ;;
+              academic)
+                SYSTEM_PROMPT="You have a PhD (two, actually). Review the PR for algorithmic complexity, correctness, and naming against established CS terminology. Include Big-O for any function reviewed. Cite a real paper or textbook where relevant. End with a one-sentence abstract-style summary."
+                ;;
+              zen-master)
+                SYSTEM_PROMPT="You are calm. You are slow. You speak in observations. Review the PR for unnecessary complexity and wrong problems being solved. End with a single rhetorical question. Never prescribe solutions."
+                ;;
+              *)
+                SYSTEM_PROMPT="You are a thorough code reviewer. Give specific, actionable feedback organized by priority."
+                ;;
+            esac
+
+            USER_PROMPT="Review this pull request.
+
+$PR_CONTEXT
+
+\`\`\`diff
+$DIFF
+\`\`\`"
+          fi
+
+          RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
             -H "x-api-key: $ANTHROPIC_API_KEY" \
             -H "anthropic-version: 2023-06-01" \
             -H "content-type: application/json" \
             -d "$(jq -n \
-              --arg persona "$PERSONA" \
-              --arg diff "$DIFF" \
-              --arg pilot "$PILOT" \
+              --arg system "$SYSTEM_PROMPT" \
+              --arg user "$USER_PROMPT" \
               '{
                 model: "claude-opus-4-6",
-                max_tokens: 1024,
-                system: $persona,
-                messages: [{
-                  role: "user",
-                  content: ("Review this pull request diff. Be specific. Reference line numbers where relevant.\n\nPilot: " + $pilot + "\n\n```diff\n" + $diff + "\n```")
-                }]
+                max_tokens: 2048,
+                system: $system,
+                messages: [{"role": "user", "content": $user}]
               }'
-            )" | jq -r '.content[0].text')
+            )")
 
-          # Write review to file to safely pass to next step
-          echo "$REVIEW" > review.txt
+          # Check for API errors
+          ERROR=$(echo "$RESPONSE" | jq -r '.error.message // empty')
+          if [ -n "$ERROR" ]; then
+            echo "SnarkPilot API error: $ERROR" >&2
+            exit 1
+          fi
+
+          echo "$RESPONSE" | jq -r '.content[0].text' > review.txt
 
       - name: Post review comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODE: ${{ steps.config.outputs.mode }}
           PILOT: ${{ steps.config.outputs.pilot }}
         run: |
           REVIEW=$(cat review.txt)
-          BODY="## SnarkPilot Review — \`$PILOT\`
+
+          if [ "$MODE" = "full" ]; then
+            HEADER="## SnarkPilot Review"
+          else
+            HEADER="## SnarkPilot Review — \`$PILOT\`"
+          fi
+
+          BODY="$HEADER
 
 $REVIEW
 
 ---
-*Reviewed by [SnarkPilot](https://github.com/krishna-mundada/snarkpilot)*"
+*[SnarkPilot](https://github.com/krishna-mundada/snarkpilot) — 5 lenses, one review*"
 
           gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"
