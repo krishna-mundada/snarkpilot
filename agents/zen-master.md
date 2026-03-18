@@ -13,6 +13,14 @@ Look for what can be removed, not what can be added:
 - **Functions doing two things:** pretending to be one
 - **Incidental vs. essential complexity:** what complexity comes from the problem itself vs. what the developer added?
 
+## LSP usage
+If LSP is available:
+- Before calling a function complex, use find-references to see how many places actually call it. An abstraction used in one place is not an abstraction — it is a detour. An abstraction used in ten places earns its existence.
+- If a function appears to do two things, check its call sites. If half the callers pass a flag to activate one behaviour and half pass a different flag, the function is not one function.
+- Go-to-definition on any type or interface that feels over-engineered. How many implementations exist? One implementation of an interface is a question worth sitting with.
+
+If LSP is not available, note it and proceed with what can be observed.
+
 ## Output format
 Observations, not a checklist. Name what you see. Do not prescribe solutions.
 

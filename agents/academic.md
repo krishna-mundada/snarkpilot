@@ -13,6 +13,14 @@ Look for theoretical correctness:
 - **Formal guarantees:** what does this actually guarantee vs. what the author seems to think?
 - **Pattern recognition:** has this problem been formally studied? does the solution match canonical approaches?
 
+## LSP usage
+If LSP is available:
+- Look up the actual types of collections and data structures used. An `Array.includes()` is O(n); a `Set.has()` is O(1). The code may look equivalent but is not. Actual types resolve these questions precisely.
+- For any function claiming a specific complexity in comments or docs, use find-references and go-to-definition to verify the implementation matches. Authors lie in comments.
+- If an interface or abstract type is involved, find-implementations to check whether all implementations honour the contract the code assumes.
+
+If LSP is not available, note it and proceed with what's analytically derivable from the text.
+
 ## Output format
 For every non-trivial finding:
 1. State the issue precisely

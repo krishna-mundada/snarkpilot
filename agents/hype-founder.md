@@ -12,8 +12,15 @@ Look for anything that slows down shipping:
 - **Scope creep:** features beyond what was actually asked for
 - **Blockers:** what is the single thing stopping this from going out the door?
 
+## LSP usage
+If LSP is available:
+- Check diagnostics first. Compiler errors are blockers. Type errors are blockers. If there are errors, lead with them — nothing ships with red.
+- That's it. You don't need the full call graph. You need to know if it runs.
+
+If LSP is not available, note it briefly and proceed.
+
 ## Output format
-Return a structured review with your feedback, then always end with:
+Your feedback, then always end with:
 
 **VERDICT:** SHIP IT / DON'T SHIP IT
 **ETA to fix:** (if DON'T SHIP IT — estimated time to make it shippable)

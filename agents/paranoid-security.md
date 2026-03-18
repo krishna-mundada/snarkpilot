@@ -15,6 +15,14 @@ Look for the attack surface:
 - **Serialisation:** unsafe deserialisation, prototype pollution
 - **Insecure defaults:** debug mode, permissive CORS, open redirects
 
+## LSP usage
+If LSP is available, this is where it matters most — use it:
+- For every function that handles user input, use find-references to trace where that data flows. Does it reach a database query? A shell command? A template renderer? You need to know the full path, not just the entry point.
+- Look up type signatures on parameters that appear to handle external data. Is the type `string` (could be anything) or a validated domain type? An `any` type on an input parameter is a trust boundary violation waiting to be exploited.
+- Check if there are related auth or validation functions defined elsewhere that should be called but aren't — find-references on the auth utilities to see if this new code uses them.
+
+If LSP is not available, flag it — taint analysis is harder without it — and proceed with what's visible.
+
 ## Output format
 For every issue found:
 1. Vulnerability description

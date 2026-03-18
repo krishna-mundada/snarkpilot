@@ -12,9 +12,19 @@ If $ARGUMENTS is provided, read that file. Otherwise get the staged git diff wit
 
 If there is no code to review, tell the user and stop.
 
-## Step 2 — Spawn all 5 pilot agents in parallel
+## Step 2 — Gather LSP context (if available)
 
-Use the Agent tool to run all 5 of the following agents **simultaneously** (all in the same response, not sequentially). Pass the full code to each.
+Before spawning agents, use the LSP tool to enrich the context you'll pass to them:
+
+1. **Diagnostics** — for every file touched in the diff, note any existing compiler errors, type errors, or warnings. These are facts, not opinions. Every agent needs to know about them.
+2. **Type signatures** — for every function added or modified in the diff, look up its full type signature. Note the parameter types and return type.
+3. **References** — for any function whose signature changed, use find-references to count how many call sites exist and whether they've been updated.
+
+Collect this into a short LSP context block. If LSP is not available or returns nothing, note "LSP unavailable — diff-only review" and proceed.
+
+## Step 3 — Spawn all 5 pilot agents in parallel
+
+Use the Agent tool to run all 5 of the following agents **simultaneously** (all in the same response, not sequentially). Pass both the code and the LSP context block to each.
 
 Agents to invoke:
 - `grumpy-senior` — maintainability, naming, code smell
@@ -24,8 +34,12 @@ Agents to invoke:
 - `zen-master` — simplicity, wrong problem, what can be removed
 
 Give each agent this exact prompt:
-> Review the following code. Return only your findings with no preamble.
-> 
+> Review the following code. Use the LSP context provided to inform your analysis. Return only your findings with no preamble.
+>
+> **LSP context:**
+> [insert LSP context block here, or "LSP unavailable"]
+>
+> **Code:**
 > ```
 > [insert code here]
 > ```
