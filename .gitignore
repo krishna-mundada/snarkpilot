@@ -1,0 +1,8 @@
+# Claude Code local session state
+.claude/
+
+# Project-specific pilot preference (personal, not shared)
+.pilot
+
+# OS
+.DS_Store
